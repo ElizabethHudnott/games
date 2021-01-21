@@ -438,7 +438,14 @@ document.getElementById('btn-toggle-ai').addEventListener('click', function (eve
 
 document.getElementById('btn-new').addEventListener('click', newGame);
 
+function initialize() {
+	resize(context);
+	newGame();
+	humanTurn();
+}
 
-resize(context);
-newGame();
-humanTurn();
+if (document.readyState === 'complete') {
+	initialize()
+} else {
+	window.addEventListener('load', initialize);
+}
