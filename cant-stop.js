@@ -225,7 +225,7 @@ class BoardState {
 }
 
 const context = document.getElementById('canvas').getContext('2d');
-let currentState, previousState, possibleMoves;
+let currentState, previousState, possibleMoves, computerRollAgain;
 let useAI = false;
 
 function resize(context) {
@@ -243,11 +243,19 @@ function moveClick(event) {
 		currentState.endTurn();
 		previousState = new BoardState(currentState);
 		currentState.draw(context);
-		computerTurn();
+		nextTurn();
 	} else {
 		const index = Array.from(movePanel.children).indexOf(this);
 		currentState.executeMove(possibleMoves[index]);
 		currentState.draw(context);
+		if (useAI && currentState.turn === 1) {
+			document.getElementById('btn-roll').disabled = !computerRollAgain;
+			document.getElementById('btn-stop').disabled = computerRollAgain;
+		} else {
+			document.getElementById('btn-roll').disabled = false;
+			document.getElementById('btn-stop').disabled = false;
+		}
+		possibleMoves = rollDice();
 		document.getElementById('btns-actions').classList.add('show');
 	}
 }
@@ -259,6 +267,7 @@ function rollDice() {
 	for (let i = 0; i < 4; i++) {
 		diceRolls[i] = Math.trunc(Math.random() * 6) + 1;
 	}
+	console.log(diceRolls);
 	diceTotals[0] = [diceRolls[0] + diceRolls[1], diceRolls[2] + diceRolls[3]]; // 01 23
 	diceTotals[1] = [diceRolls[0] + diceRolls[2], diceRolls[1] + diceRolls[3]]; // 02 13
 	diceTotals[2] = [diceRolls[0] + diceRolls[3], diceRolls[1] + diceRolls[2]]; // 03 12
@@ -330,7 +339,7 @@ function rollDice() {
 	return moves;
 }
 
-function showMoves() {
+function showMoves(chosenOption) {
 	const buttonPanel = document.getElementById('btns-moves');
 	buttonPanel.innerHTML = '';
 	if (possibleMoves.length === 0) {
@@ -340,7 +349,8 @@ function showMoves() {
 		button.addEventListener('click', moveClick);
 		buttonPanel.appendChild(button);
 	} else {
-		for (let move of possibleMoves) {
+		for (let i = 0; i < possibleMoves.length; i++) {
+			const move = possibleMoves[i];
 			const button = document.createElement('BUTTON');
 			button.type = 'button';
 			if (move.length === 1) {
@@ -348,7 +358,13 @@ function showMoves() {
 			} else {
 				button.innerHTML = 'Move on ' + move[0] + ' and ' + move[1];
 			}
-			button.addEventListener('click', moveClick);
+			if (chosenOption === undefined) {
+				button.addEventListener('click', moveClick);
+			} else if (chosenOption === i) {
+				button.addEventListener('click', moveClick);
+			} else {
+				button.disabled = true;
+			}
 			buttonPanel.appendChild(button);
 		}
 	}
@@ -361,53 +377,31 @@ function newGame() {
 	currentState.draw(context);
 }
 
-function humanTurn() {
+function nextTurn() {
 	possibleMoves = rollDice();
-	showMoves();
+	if (useAI && currentState.turn === 1) {
+		computerTurn();
+	} else {
+		showMoves();
+	}
 }
 
 function computerTurn() {
-	if (!useAI) {
-		humanTurn();
-		return;
-	}
-
 	const playerNum = currentState.turn;
-	let continueOn;
-	do {
-		const moveData = [];
-		possibleMoves = rollDice();
-		if (possibleMoves.length === 0) {
-
-			currentState = previousState;
-			continueOn = false;
-
-		} else {
-
-			for (let move of possibleMoves) {
-				const thinkingState = new BoardState(currentState);
-				thinkingState.executeMove(move);
-				moveData.push(thinkingState.evaluate(playerNum));
-			}
-			moveData.sort(compareMoves);
-			const bestOption = moveData[0]
-			currentState = bestOption.state;
-			continueOn = bestOption.freeCounters > 0;
-
-		}
-	} while (continueOn);
-	currentState.endTurn();
-	previousState = new BoardState(currentState);
-	currentState.draw(context);
-	const winner = currentState.getWinner();
-	if (winner === undefined) {
-		humanTurn();
+	const moveData = [];
+	for (let move of possibleMoves) {
+		const thinkingState = new BoardState(currentState);
+		thinkingState.executeMove(move);
+		moveData.push(thinkingState.evaluate(playerNum));
 	}
+	const sortedMoveData = moveData.slice().sort(compareMoves);
+	const bestOption = sortedMoveData[0];
+	computerRollAgain = bestOption.freeCounters > 0;
+	showMoves(moveData.indexOf(bestOption));
 }
 
 document.getElementById('btn-roll').addEventListener('click', function (event) {
 	document.getElementById('btns-actions').classList.remove('show');
-	possibleMoves = rollDice();
 	showMoves();
 });
 
@@ -418,7 +412,7 @@ document.getElementById('btn-stop').addEventListener('click', function (event) {
 	currentState.draw(context);
 	const winner = currentState.getWinner();
 	if (winner === undefined) {
-		computerTurn();
+		nextTurn();
 	}
 });
 
@@ -432,6 +426,11 @@ document.getElementById('btn-toggle-ai').addEventListener('click', function (eve
 			computerTurn();
 		}
 	} else {
+		document.getElementById('btn-roll').disabled = false;
+		document.getElementById('btn-stop').disabled = false;
+		for (let moveButton of document.getElementById('btns-moves').children) {
+			moveButton.disabled = false;
+		}
 		this.innerHTML = 'Enable AI';
 	}
 });
@@ -441,7 +440,7 @@ document.getElementById('btn-new').addEventListener('click', newGame);
 function initialize() {
 	resize(context);
 	newGame();
-	humanTurn();
+	nextTurn();
 }
 
 if (document.readyState === 'complete') {
