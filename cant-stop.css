@@ -1,0 +1,22 @@
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 8px;
+	width: calc(100vw - 16px);
+	height: calc(100vh - 16px);
+}
+
+.flex {
+	display: flex;
+}
+
+.fade {
+	opacity: 0;
+	transition: opacity 0.4s;
+}
+
+.fade.show {
+	opacity: 1;
+}
