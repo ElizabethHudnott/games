@@ -151,7 +151,7 @@ class BoardState {
 		return new MoveInfo(this, columnsWon, score, tieBreakScore);
 	}
 
-	draw(context) {
+	draw(context, clearerBoard) {
 		const canvas = context.canvas;
 		const cellSize = Math.trunc(Math.min(canvas.width / 11, canvas.height / boardHeight) / 2) * 2;
 		const padding = Math.max(cellSize * cellPaddingFraction, minCellPaddingPx);
@@ -174,7 +174,12 @@ class BoardState {
 				columnColor = playerColors[1];
 			}
 			for (let j = columnHeight; j > 0; j--) {
-				const y = (boardHeight + 0.5 - (j + offset / 2)) * cellSize;
+				let y;
+				if (clearerBoard) {
+					y = (boardHeight + 0.5 - (j + offset)) * cellSize;
+				} else {
+					y = (boardHeight + 0.5 - (j + offset / 2)) * cellSize;
+				}
 				if (columnColor !== undefined) {
 
 					context.beginPath();
@@ -217,7 +222,7 @@ class BoardState {
 		context.fillStyle = temporaryColor;
 		for (let i = 0; i < maxCounters - this.currentColumns.size; i++) {
 			context.beginPath();
-			context.arc((i + 0.5) * cellSize, 0.5 * cellSize, radius, 0, TWO_PI);
+			context.arc((i + 0.5) * cellSize, (boardHeight - 0.5) * cellSize, radius, 0, TWO_PI);
 			context.fill();
 		}
 	}
@@ -227,6 +232,7 @@ class BoardState {
 const context = document.getElementById('canvas').getContext('2d');
 let currentState, previousState, possibleMoves, computerRollAgain;
 let useAI = false;
+let boardClarity = false;
 
 function resize(context) {
 	const size = Math.min(container.clientWidth, container.clientHeight);
@@ -242,12 +248,12 @@ function moveClick(event) {
 		currentState = previousState;
 		currentState.endTurn();
 		previousState = new BoardState(currentState);
-		currentState.draw(context);
+		currentState.draw(context, boardClarity);
 		nextTurn();
 	} else {
 		const index = Array.from(movePanel.children).indexOf(this);
 		currentState.executeMove(possibleMoves[index]);
-		currentState.draw(context);
+		currentState.draw(context, boardClarity);
 		if (useAI && currentState.turn === 1) {
 			document.getElementById('btn-roll').disabled = !computerRollAgain;
 			document.getElementById('btn-stop').disabled = computerRollAgain;
@@ -267,7 +273,6 @@ function rollDice() {
 	for (let i = 0; i < 4; i++) {
 		diceRolls[i] = Math.trunc(Math.random() * 6) + 1;
 	}
-	console.log(diceRolls);
 	diceTotals[0] = [diceRolls[0] + diceRolls[1], diceRolls[2] + diceRolls[3]]; // 01 23
 	diceTotals[1] = [diceRolls[0] + diceRolls[2], diceRolls[1] + diceRolls[3]]; // 02 13
 	diceTotals[2] = [diceRolls[0] + diceRolls[3], diceRolls[1] + diceRolls[2]]; // 03 12
@@ -374,7 +379,7 @@ function showMoves(chosenOption) {
 function newGame() {
 	currentState = new BoardState();
 	previousState = new BoardState(currentState);
-	currentState.draw(context);
+	currentState.draw(context, boardClarity);
 }
 
 function nextTurn() {
@@ -400,21 +405,7 @@ function computerTurn() {
 	showMoves(moveData.indexOf(bestOption));
 }
 
-document.getElementById('btn-roll').addEventListener('click', function (event) {
-	document.getElementById('btns-actions').classList.remove('show');
-	showMoves();
-});
-
-document.getElementById('btn-stop').addEventListener('click', function (event) {
-	document.getElementById('btns-actions').classList.remove('show');
-	currentState.endTurn();
-	previousState = new BoardState(currentState);
-	currentState.draw(context);
-	const winner = currentState.getWinner();
-	if (winner === undefined) {
-		nextTurn();
-	}
-});
+document.getElementById('btn-new').addEventListener('click', newGame);
 
 document.getElementById('btn-toggle-ai').addEventListener('click', function (event) {
 	useAI = !useAI;
@@ -435,7 +426,35 @@ document.getElementById('btn-toggle-ai').addEventListener('click', function (eve
 	}
 });
 
-document.getElementById('btn-new').addEventListener('click', newGame);
+document.getElementById('btn-layout').addEventListener('click', function (event) {
+	boardClarity = !boardClarity;
+	currentState.draw(context, boardClarity);
+	if (boardClarity) {
+		this.innerHTML = 'Standard Layout';
+	} else {
+		this.innerHTML = 'Clearer Layout';
+	}
+});
+
+document.getElementById('btn-roll').addEventListener('click', function (event) {
+	document.getElementById('btns-actions').classList.remove('show');
+	if (useAI && currentState.turn === 1) {
+		computerTurn();
+	} else {
+		showMoves();
+	}
+});
+
+document.getElementById('btn-stop').addEventListener('click', function (event) {
+	document.getElementById('btns-actions').classList.remove('show');
+	currentState.endTurn();
+	previousState = new BoardState(currentState);
+	currentState.draw(context, boardClarity);
+	const winner = currentState.getWinner();
+	if (winner === undefined) {
+		nextTurn();
+	}
+});
 
 function initialize() {
 	resize(context);
