@@ -3,9 +3,11 @@ let columnsToWin = 3;
 let maxCounters = 3;
 let boardHeight = 13;
 
-let emptySpaceColor = '#888888';
+let emptySpaceColor = 'hsl(120, 2%, 53%)';
 let temporaryColor = '#000000';
-let playerColors = ['hsl(355, 100%, 70%)', 'hsl(120, 100%, 65%)'];
+let playerColors = ['hsl(210, 95%, 60%)', 'hsl(30, 95%, 60%)'];
+let colorNames = ['Blue', 'Orange'];
+// playerColors = ['#505050', '#c8c8c8'];
 let cellPaddingFraction = 0.1;
 let minCellPaddingPx = 2;
 let secondCounterOffsetFraction = 0.15;
@@ -180,16 +182,18 @@ class BoardState {
 				} else {
 					y = (boardHeight + 0.5 - (j + offset / 2)) * cellSize;
 				}
+				const counters = [];
+
 				if (columnColor !== undefined) {
 
-					context.beginPath();
-					context.arc(x, y, radius, 0, TWO_PI);
-					context.fillStyle = columnColor;
-					context.fill();
+					if (j === columnHeight && this.currentColumns.has(i)) {
+						counters.push(temporaryColor);
+					} else {
+						counters.push(columnColor);
+					}
 
 				} else {
 
-					const counters = [];
 					if (this.playerStates[1][i - 2] === j + offset) {
 						counters.push(this.turn === 1 && this.currentColumns.has(i) ? temporaryColor : playerColors[1]);
 					}
@@ -200,21 +204,22 @@ class BoardState {
 							counters.push(this.turn === 0 && this.currentColumns.has(i) ? temporaryColor : playerColors[0]);
 						}
 					}
-					const emptySpace = counters.length === 0;
-					if (emptySpace) {
-						counters.push(emptySpaceColor);
-					}
+				}
 
-					for (let k = 0; k < counters.length; k++) {
-						context.beginPath();
-						context.arc(x, y - k * secondCounterOffset, radius, 0, TWO_PI);
-						context.fillStyle = counters[k];
-						context.fill();
-					}
-					if (emptySpace) {
-						context.fillStyle = 'black';
-						context.fillText(i, x, y);
-					}
+				const emptySpace = counters.length === 0;
+				if (emptySpace) {
+					counters.push(emptySpaceColor);
+				}
+
+				for (let k = 0; k < counters.length; k++) {
+					context.beginPath();
+					context.arc(x, y - k * secondCounterOffset, radius, 0, TWO_PI);
+					context.fillStyle = counters[k];
+					context.fill();
+				}
+				if (emptySpace) {
+					context.fillStyle = 'black';
+					context.fillText(i, x, y);
 				}
 			} // end for each row
 		} // end for each column
@@ -239,31 +244,6 @@ function resize(context) {
 	const canvas = context.canvas;
 	canvas.width = size;
 	canvas.height = size;
-}
-
-function moveClick(event) {
-	const movePanel = document.getElementById('btns-moves');
-	movePanel.classList.remove('show');
-	if (possibleMoves.length === 0) {
-		currentState = previousState;
-		currentState.endTurn();
-		previousState = new BoardState(currentState);
-		currentState.draw(context, boardClarity);
-		nextTurn();
-	} else {
-		const index = Array.from(movePanel.children).indexOf(this);
-		currentState.executeMove(possibleMoves[index]);
-		currentState.draw(context, boardClarity);
-		if (useAI && currentState.turn === 1) {
-			document.getElementById('btn-roll').disabled = !computerRollAgain;
-			document.getElementById('btn-stop').disabled = computerRollAgain;
-		} else {
-			document.getElementById('btn-roll').disabled = false;
-			document.getElementById('btn-stop').disabled = false;
-		}
-		possibleMoves = rollDice();
-		document.getElementById('btns-actions').classList.add('show');
-	}
 }
 
 function rollDice() {
@@ -379,6 +359,7 @@ function showMoves(chosenOption) {
 function newGame() {
 	currentState = new BoardState();
 	previousState = new BoardState(currentState);
+	document.getElementById('winning-message').hidden = true;
 	currentState.draw(context, boardClarity);
 }
 
@@ -392,6 +373,11 @@ function nextTurn() {
 }
 
 function computerTurn() {
+	if (possibleMoves.length === 0) {
+		showMoves();
+		return;
+	}
+
 	const playerNum = currentState.turn;
 	const moveData = [];
 	for (let move of possibleMoves) {
@@ -403,6 +389,45 @@ function computerTurn() {
 	const bestOption = sortedMoveData[0];
 	computerRollAgain = bestOption.freeCounters > 0;
 	showMoves(moveData.indexOf(bestOption));
+}
+
+function declareWinner(winner) {
+	currentState.endTurn();
+	currentState.draw(context, boardClarity);
+	const winnerElement = document.getElementById('winner');
+	winnerElement.innerHTML = colorNames[winner];
+	winnerElement.style.color = playerColors[winner];
+	document.getElementById('winning-message').hidden = false;
+}
+
+function moveClick(event) {
+	const movePanel = document.getElementById('btns-moves');
+	movePanel.classList.remove('show');
+	if (possibleMoves.length === 0) {
+		currentState = previousState;
+		currentState.endTurn();
+		previousState = new BoardState(currentState);
+		currentState.draw(context, boardClarity);
+		nextTurn();
+	} else {
+		const index = Array.from(movePanel.children).indexOf(this);
+		currentState.executeMove(possibleMoves[index]);
+		currentState.draw(context, boardClarity);
+		if (useAI && currentState.turn === 1) {
+			document.getElementById('btn-roll').disabled = !computerRollAgain;
+			document.getElementById('btn-stop').disabled = computerRollAgain;
+		} else {
+			document.getElementById('btn-roll').disabled = false;
+			document.getElementById('btn-stop').disabled = false;
+		}
+		const winner = currentState.getWinner();
+		if (winner === undefined) {
+			possibleMoves = rollDice();
+			document.getElementById('btns-actions').classList.add('show');
+		} else {
+			declareWinner(winner);
+		}
+	}
 }
 
 document.getElementById('btn-new').addEventListener('click', newGame);
@@ -453,6 +478,8 @@ document.getElementById('btn-stop').addEventListener('click', function (event) {
 	const winner = currentState.getWinner();
 	if (winner === undefined) {
 		nextTurn();
+	} else {
+		declareWinner(winner);
 	}
 });
 
