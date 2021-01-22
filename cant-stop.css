@@ -11,8 +11,6 @@ body {
 
 .btn-large {
 	font-size: 1.5rem;
-	margin-top: 0.5rem;
-	margin-bottom: 0.5rem;
 }
 
 .display-block {
@@ -40,8 +38,12 @@ body {
 	flex-grow: 1;
 }
 
-.mr-2 {
-	margin-right: 0.5rem;
+.mr-5 {
+	margin-right: 2rem;
+}
+
+.mb-5 {
+	margin-bottom: 2rem;
 }
 
 .mx-auto {
