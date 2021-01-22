@@ -5,6 +5,7 @@ let boardHeight = 13;
 
 let emptySpaceColor = 'hsl(120, 2%, 53%)';
 let temporaryColor = '#000000';
+let stripeColor = 'hsl(90, 80%, 87%)';
 let playerColors = ['hsl(210, 95%, 60%)', 'hsl(30, 95%, 60%)'];
 let colorNames = ['Blue', 'Orange'];
 // playerColors = ['#505050', '#c8c8c8'];
@@ -159,7 +160,7 @@ class BoardState {
 		const padding = Math.max(cellSize * cellPaddingFraction, minCellPaddingPx);
 		const radius = cellSize / 2 - padding;
 		const secondCounterOffset = Math.round(cellSize * secondCounterOffsetFraction);
-		const fontSize = textFraction * 2 * radius;
+		const fontSize = Math.max(textFraction * 2 * radius, 15);
 		context.font = 'bold ' + fontSize + 'px sans-serif';
 		context.textAlign = 'center';
 		context.textBaseline = 'middle';
@@ -169,6 +170,10 @@ class BoardState {
 			const offset = 2 * (i <= 7 ? 7 - i : i - 7);
 			const columnHeight = boardHeight - offset;
 			const x = (i - 2 + 0.5) * cellSize;
+			if (i % 2 === 0) {
+				context.fillStyle = stripeColor;
+				context.fillRect(x - 0.5 * cellSize, 0, cellSize, canvas.height);
+			}
 			let columnColor;
 			if (this.playerStates[0][i - 2] === boardHeight) {
 				columnColor = playerColors[0];
@@ -240,10 +245,10 @@ let useAI = false;
 let boardClarity = false;
 
 function resize(context) {
-	const size = Math.min(container.clientWidth, container.clientHeight);
+	const size = Math.min(container.clientWidth, container.clientHeight * 11 / boardHeight);
 	const canvas = context.canvas;
-	canvas.width = size;
-	canvas.height = size;
+	canvas.width = Math.trunc(size);
+	canvas.height = Math.trunc(size * boardHeight / 11);
 }
 
 function rollDice() {
@@ -331,6 +336,7 @@ function showMoves(chosenOption) {
 		const button = document.createElement('BUTTON');
 		button.type = 'button';
 		button.innerHTML = currentState.freeCounters() > 0 ? 'Pass' : 'Lose Progress';
+		button.classList.add('btn-large', 'display-block');
 		button.addEventListener('click', moveClick);
 		buttonPanel.appendChild(button);
 	} else {
@@ -350,6 +356,7 @@ function showMoves(chosenOption) {
 			} else {
 				button.disabled = true;
 			}
+			button.classList.add('btn-large', 'display-block');
 			buttonPanel.appendChild(button);
 		}
 	}

@@ -9,8 +9,14 @@ body {
 	height: calc(100vh - 16px);
 }
 
-.flex {
-	display: flex;
+.btn-large {
+	font-size: 1.5rem;
+	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
+}
+
+.display-block {
+	display: block;
 }
 
 .fade {
@@ -20,4 +26,29 @@ body {
 
 .fade.show {
 	opacity: 1;
+}
+
+.flex {
+	display: flex;
+}
+
+.align-items-center {
+	align-items: center;
+}
+
+.flex-grow {
+	flex-grow: 1;
+}
+
+.mr-2 {
+	margin-right: 0.5rem;
+}
+
+.mx-auto {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.w-fit {
+	width: fit-content;
 }
