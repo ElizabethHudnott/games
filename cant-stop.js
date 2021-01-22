@@ -94,7 +94,7 @@ class BoardState {
 			state[columnNum - 2]++;
 			this.currentColumns.add(columnNum);
 			this.totalMoveLength++;
-			this.gain += 1296 / COMBINATIONS[columnNum - 2];
+			this.gain += boardHeight / (boardHeight - 2 * Math.abs(columnNum - 7));
 		}
 	}
 
@@ -249,7 +249,7 @@ class BoardState {
 				for (let move of possibleMoves) {
 					let gain = 0;
 					for (let column of move) {
-						gain += 1296 / COMBINATIONS[column - 2];
+						gain += boardHeight / (boardHeight - 2 * Math.abs(column - 7));
 					}
 					if (gain > maxGain) {
 						maxGain = gain;
@@ -274,7 +274,7 @@ class BoardState {
 		context.clearRect(0, 0, canvas.width, canvas.height);
 
 		for (let i = 2; i <= 12; i++) {
-			const offset = 2 * (i <= 7 ? 7 - i : i - 7);
+			const offset = 2 * Math.abs(i - 7);
 			const columnHeight = boardHeight - offset;
 			const x = (i - 2 + 0.5) * cellSize;
 			if (i % 2 === 0) {
@@ -405,6 +405,7 @@ function newGame() {
 	previousState = new BoardState(currentState);
 	document.getElementById('winning-message').hidden = true;
 	currentState.draw(context, boardClarity);
+	nextTurn();
 }
 
 function nextTurn() {
