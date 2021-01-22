@@ -64,11 +64,13 @@ class BoardState {
 			this.playerStates = [player1, player1.slice()];
 			this.currentColumns = new Set();
 			this.totalMoveLength = 0;
+			this.gain = 0;
 			this.turn = 0;
 		} else {
 			this.playerStates = [stateToCopy.playerStates[0].slice(), stateToCopy.playerStates[1].slice()];
 			this.currentColumns = new Set(stateToCopy.currentColumns);
 			this.totalMoveLength = stateToCopy.totalMoveLength;
+			this.gain = stateToCopy.gain;
 			this.turn = stateToCopy.turn;
 		}
 	}
@@ -92,12 +94,14 @@ class BoardState {
 			state[columnNum - 2]++;
 			this.currentColumns.add(columnNum);
 			this.totalMoveLength++;
+			this.gain += 1296 / COMBINATIONS[columnNum - 2];
 		}
 	}
 
 	endTurn() {
 		this.currentColumns.clear();
 		this.totalMoveLength = 0;
+		this.gain = 0;
 		this.turn = 1 - this.turn;
 	}
 
@@ -152,6 +156,109 @@ class BoardState {
 			score += opponentExpectedRolls[i] - myExpectedRolls[i];
 		}
 		return new MoveInfo(this, columnsWon, score, tieBreakScore);
+	}
+
+	possibleMoves(diceRolls) {
+		const diceTotals = new Array(3);
+		diceTotals[0] = [diceRolls[0] + diceRolls[1], diceRolls[2] + diceRolls[3]]; // 01 23
+		diceTotals[1] = [diceRolls[0] + diceRolls[2], diceRolls[1] + diceRolls[3]]; // 02 13
+		diceTotals[2] = [diceRolls[0] + diceRolls[3], diceRolls[1] + diceRolls[2]]; // 03 12
+
+		const moves = [];
+		const numCountersFree = this.freeCounters();
+
+		function addMove(move) {
+			if (move.length === 0) {
+				return;
+			}
+			move.sort(numericCompare);
+			for (let existingMove of moves) {
+				if (move.length !== existingMove.length) {
+					continue;
+				}
+				let different = false;
+				for (let i = 0; i < move.length; i++) {
+					if (existingMove[i] !== move[i]) {
+						different = true;
+						break;
+					}
+				}
+				if (!different) {
+					return;
+				}
+			}
+			moves.push(move);
+		}
+
+		for (let i = 0; i < 3; i++) {
+			const totals = diceTotals[i];
+			let move = [];
+			if (totals[0] === totals[1]) {
+				const total = totals[0];
+				if (this.currentColumns.has(total) || numCountersFree > 0) {
+					const moveLength = Math.min(this.maxAdvance(this.turn, total), 2);
+					for (let j = 0; j < moveLength; j++) {
+						move.push(total);
+					}
+					addMove(move);
+				}
+			} else {
+				let total = totals[0];
+				let existingCounter = this.currentColumns.has(total);
+				let usedCounter = !existingCounter;
+
+				if (existingCounter || numCountersFree > 0) {
+					if (this.maxAdvance(this.turn, total) > 0) {
+						move[0] = total;
+					} else {
+						usedCounter = false;
+					}
+				}
+				total = totals[1];
+				existingCounter = this.currentColumns.has(total);
+				if (existingCounter || numCountersFree > 0) {
+					if (this.maxAdvance(this.turn, total) > 0) {
+						if (!existingCounter && usedCounter && numCountersFree === 1) {
+							addMove(move);
+							move = [];
+						}
+						move.push(total);
+					}
+				}
+				addMove(move);
+			}
+		}
+		return moves;
+	}
+
+	expectedGain() {
+		let sum = 0;
+		for (let i = 0; i < 1296; i++) {
+			const a = (i % 6) + 1;
+			let remainder = Math.trunc(i / 6);
+			const b = (remainder % 6) + 1;
+			remainder = Math.trunc(i / 6);
+			const c = (remainder % 6) + 1;
+			remainder = Math.trunc(i / 6);
+			const d = (remainder % 6) + 1;
+			remainder = Math.trunc(i / 6);
+
+			const possibleMoves = this.possibleMoves([a, b, c, d]);
+			if (possibleMoves.length > 0) {
+				let maxGain = 0;
+				for (let move of possibleMoves) {
+					let gain = 0;
+					for (let column of move) {
+						gain += 1296 / COMBINATIONS[column - 2];
+					}
+					if (gain > maxGain) {
+						maxGain = gain;
+					}
+				}
+				sum += this.gain + maxGain;
+			}
+		}
+		return sum / 1296;
 	}
 
 	draw(context, clearerBoard) {
@@ -253,80 +360,10 @@ function resize(context) {
 
 function rollDice() {
 	const diceRolls = new Array(4);
-	const diceTotals = new Array(3);
-
 	for (let i = 0; i < 4; i++) {
 		diceRolls[i] = Math.trunc(Math.random() * 6) + 1;
 	}
-	diceTotals[0] = [diceRolls[0] + diceRolls[1], diceRolls[2] + diceRolls[3]]; // 01 23
-	diceTotals[1] = [diceRolls[0] + diceRolls[2], diceRolls[1] + diceRolls[3]]; // 02 13
-	diceTotals[2] = [diceRolls[0] + diceRolls[3], diceRolls[1] + diceRolls[2]]; // 03 12
-
-	const moves = [];
-	const numCountersFree = currentState.freeCounters();
-
-	function addMove(move) {
-		if (move.length === 0) {
-			return;
-		}
-		move.sort(numericCompare);
-		for (let existingMove of moves) {
-			if (move.length !== existingMove.length) {
-				continue;
-			}
-			let different = false;
-			for (let i = 0; i < move.length; i++) {
-				if (existingMove[i] !== move[i]) {
-					different = true;
-					break;
-				}
-			}
-			if (!different) {
-				return;
-			}
-		}
-		moves.push(move);
-	}
-
-	for (let i = 0; i < 3; i++) {
-		const totals = diceTotals[i];
-		let move = [];
-		if (totals[0] === totals[1]) {
-			const total = totals[0];
-			if (currentState.currentColumns.has(total) || numCountersFree > 0) {
-				const moveLength = Math.min(currentState.maxAdvance(currentState.turn, total), 2);
-				for (let j = 0; j < moveLength; j++) {
-					move.push(total);
-				}
-				addMove(move);
-			}
-		} else {
-			let total = totals[0];
-			let existingCounter = currentState.currentColumns.has(total);
-			let usedCounter = !existingCounter;
-
-			if (existingCounter || numCountersFree > 0) {
-				if (currentState.maxAdvance(currentState.turn, total) > 0) {
-					move[0] = total;
-				} else {
-					usedCounter = false;
-				}
-			}
-			total = totals[1];
-			existingCounter = currentState.currentColumns.has(total);
-			if (existingCounter || numCountersFree > 0) {
-				if (currentState.maxAdvance(currentState.turn, total) > 0) {
-					if (!existingCounter && usedCounter && numCountersFree === 1) {
-						addMove(move);
-						move = [];
-					}
-					move.push(total);
-				}
-			}
-			addMove(move);
-		}
-	}
-	return moves;
+	return diceRolls;
 }
 
 function showMoves(chosenOption) {
@@ -371,7 +408,7 @@ function newGame() {
 }
 
 function nextTurn() {
-	possibleMoves = rollDice();
+	possibleMoves = currentState.possibleMoves(rollDice());
 	if (useAI && currentState.turn === 1) {
 		computerTurn();
 	} else {
@@ -429,7 +466,7 @@ function moveClick(event) {
 		}
 		const winner = currentState.getWinner();
 		if (winner === undefined) {
-			possibleMoves = rollDice();
+			possibleMoves = currentState.possibleMoves(rollDice());
 			document.getElementById('btns-actions').classList.add('show');
 		} else {
 			declareWinner(winner);
@@ -479,6 +516,7 @@ document.getElementById('btn-roll').addEventListener('click', function (event) {
 
 document.getElementById('btn-stop').addEventListener('click', function (event) {
 	document.getElementById('btns-actions').classList.remove('show');
+	console.log(currentState.expectedGain() - currentState.gain);
 	currentState.endTurn();
 	previousState = new BoardState(currentState);
 	currentState.draw(context, boardClarity);
