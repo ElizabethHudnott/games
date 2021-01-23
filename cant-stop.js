@@ -357,7 +357,8 @@ class BoardState {
 
 const context = document.getElementById('canvas').getContext('2d');
 let currentState, previousState, possibleMoves, computerRollAgain;
-let useAI = false;
+let firstPlayer = Math.trunc(Math.random() * 2);
+let useAI = true;
 let boardClarity = false;
 
 function resize(context) {
@@ -381,7 +382,7 @@ function showMoves(chosenOption) {
 	if (possibleMoves.length === 0) {
 		const button = document.createElement('BUTTON');
 		button.type = 'button';
-		button.innerHTML = currentState.freeCounters() > 0 ? 'Pass' : 'Lose Progress';
+		button.innerHTML = currentState.totalMoveLength === 0 ? 'Pass' : 'Lose Progress';
 		button.classList.add('btn-large', 'display-block');
 		button.addEventListener('click', moveClick);
 		buttonPanel.appendChild(button);
@@ -411,6 +412,8 @@ function showMoves(chosenOption) {
 
 function newGame() {
 	currentState = new BoardState();
+	firstPlayer = 1 - firstPlayer;
+	currentState.turn = firstPlayer;
 	previousState = new BoardState(currentState);
 	currentState.draw(context, previousState, boardClarity);
 	document.getElementById('winning-message').hidden = true;
@@ -456,7 +459,9 @@ function shouldGamble(bestOption) {
 			return false;
 		}
 	}
-	return bestState.expectedGain() - bestState.gain > -2;
+	const furtherGain = bestState.expectedGain() - bestState.gain;
+	if (furtherGain > - 6) console.log(furtherGain);
+	return furtherGain > -6;
 }
 
 function declareWinner(winner) {
@@ -540,7 +545,6 @@ document.getElementById('btn-roll').addEventListener('click', function (event) {
 
 document.getElementById('btn-stop').addEventListener('click', function (event) {
 	document.getElementById('btns-actions').classList.remove('show');
-	console.log(currentState.expectedGain() - currentState.gain);
 	currentState.endTurn();
 	previousState = new BoardState(currentState);
 	currentState.draw(context, previousState, boardClarity);
@@ -555,7 +559,6 @@ document.getElementById('btn-stop').addEventListener('click', function (event) {
 function initialize() {
 	resize(context);
 	newGame();
-	nextTurn();
 }
 
 if (document.readyState === 'complete') {
