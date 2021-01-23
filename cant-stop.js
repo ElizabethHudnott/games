@@ -92,13 +92,18 @@ class BoardState {
 		return this.playerStates[playerNum][columnNum - 2] === boardHeight;
 	}
 
-	executeMove(move) {
+	executeMove(move, previousState) {
 		const state = this.playerStates[this.turn];
 		for (let columnNum of move) {
 			state[columnNum - 2]++;
 			this.currentColumns.add(columnNum);
 			this.totalMoveLength++;
-			this.gain += boardHeight / (boardHeight - 2 * Math.abs(columnNum - 7));
+		}
+		const referenceState = previousState.playerStates[this.turn];
+		this.gain = 0;
+		for (let columnNum of this.currentColumns) {
+			const previousPosition = referenceState[columnNum - 2];
+			this.gain += (state[columnNum - 2] - previousPosition) / (boardHeight - previousPosition);
 		}
 	}
 
@@ -235,7 +240,9 @@ class BoardState {
 		return moves;
 	}
 
-	expectedGain() {
+	expectedGain(previousState) {
+		const state = this.playerStates[this.turn];
+		const referenceState = previousState.playerStates[this.turn];
 		let sum = 0;
 		for (let i = 0; i < 1296; i++) {
 			const a = (i % 6) + 1;
@@ -251,15 +258,30 @@ class BoardState {
 			if (possibleMoves.length > 0) {
 				let maxGain = 0;
 				for (let move of possibleMoves) {
-					let gain = 0;
-					for (let column of move) {
-						gain += boardHeight / (boardHeight - 2 * Math.abs(column - 7));
+					let columnNum = move[0];
+					let previousPosition = referenceState[columnNum - 2];
+					let gain
+					if (move[0] === move[1]) {
+						gain = (state[columnNum - 2] + 2 - previousPosition) / (boardHeight - previousPosition);
+					} else {
+						gain = (state[columnNum - 2] + 1 - previousPosition) / (boardHeight - previousPosition);
+						if (move.length === 2) {
+							columnNum = move[1];
+							previousPosition = referenceState[columnNum - 2];
+							gain += (state[columnNum - 2] + 1 - previousPosition) / (boardHeight - previousPosition);
+						}
+					}
+					for (columnNum of this.currentColumns) {
+						if (!move.includes(columnNum)) {
+							previousPosition = referenceState[columnNum - 2];
+							gain += (state[columnNum - 2] - previousPosition) / (boardHeight - previousPosition);
+						}
 					}
 					if (gain > maxGain) {
 						maxGain = gain;
 					}
 				}
-				sum += this.gain + maxGain;
+				sum += maxGain;
 			}
 		}
 		return sum / 1296;
@@ -439,7 +461,7 @@ function computerTurn() {
 	const moveData = [];
 	for (let move of possibleMoves) {
 		const thinkingState = new BoardState(currentState);
-		thinkingState.executeMove(move);
+		thinkingState.executeMove(move, previousState);
 		moveData.push(thinkingState.evaluate(playerNum));
 	}
 	const sortedMoveData = moveData.slice().sort(compareMoves);
@@ -459,9 +481,9 @@ function shouldGamble(bestOption) {
 			return false;
 		}
 	}
-	const furtherGain = bestState.expectedGain() - bestState.gain;
-	if (furtherGain > - 6) console.log(furtherGain);
-	return furtherGain > -6;
+	const furtherGain = bestState.expectedGain(previousState) - currentState.gain;
+	console.log(furtherGain);
+	return furtherGain > 0;
 }
 
 function declareWinner(winner) {
@@ -484,7 +506,7 @@ function moveClick(event) {
 		nextTurn();
 	} else {
 		const index = Array.from(movePanel.children).indexOf(this);
-		currentState.executeMove(possibleMoves[index]);
+		currentState.executeMove(possibleMoves[index], previousState);
 		currentState.draw(context, previousState, boardClarity);
 		if (useAI && currentState.turn === 1) {
 			document.getElementById('btn-roll').disabled = !computerRollAgain;
