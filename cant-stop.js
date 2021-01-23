@@ -88,6 +88,10 @@ class BoardState {
 		}
 	}
 
+	completedColumn(playerNum, columnNum) {
+		return this.playerStates[playerNum][columnNum - 2] === boardHeight;
+	}
+
 	executeMove(move) {
 		const state = this.playerStates[this.turn];
 		for (let columnNum of move) {
@@ -432,8 +436,22 @@ function computerTurn() {
 	}
 	const sortedMoveData = moveData.slice().sort(compareMoves);
 	const bestOption = sortedMoveData[0];
-	computerRollAgain = bestOption.freeCounters > 0;
+	computerRollAgain = shouldGamble(bestOption);
 	showMoves(moveData.indexOf(bestOption));
+}
+
+function shouldGamble(bestOption) {
+	if (bestOption.freeCounters > 0) {
+		return true;
+	}
+	const bestState = bestOption.state;
+	const playerNum = bestState.turn;
+	for (let column of bestState.currentColumns) {
+		if (bestState.completedColumn(playerNum, column) && !previousState.completedColumn(playerNum, column)) {
+			return false;
+		}
+	}
+	return bestState.expectedGain() - bestState.gain > -2;
 }
 
 function declareWinner(winner) {
