@@ -560,6 +560,7 @@ document.getElementById('btn-stop').addEventListener('click', function (event) {
 	if (!classList.contains('show')) {
 		return;
 	}
+	classList.remove('show');
 	currentState.endTurn();
 	previousState = new BoardState(currentState);
 	currentState.draw(context, previousState, boardClarity);
