@@ -40,8 +40,10 @@ function compareMoves(move1, move2) {
 	if (move1.columnsWon !== move2.columnsWon) {
 		return move2.columnsWon - move1.columnsWon;
 	}
-	if (move1.freeCounters !== move2.freeCounters) {
-		return move2.freeCounters - move1.freeCounters;
+	const move1CounterFree = move1.freeCounters > 0;
+	const move2CounterFree = move2.freeCounters > 0;
+	if (move1CounterFree !== move2CounterFree) {
+		return move2CounterFree - move1CounterFree;
 	}
 	if (move1.score !== move2.score) {
 		return move2.score - move1.score;
@@ -49,7 +51,10 @@ function compareMoves(move1, move2) {
 	if (move1.tieBreakScore !== move2.tieBreakScore) {
 		return move2.tieBreakScore - move1.tieBreakScore;
 	}
-	return move2.state.totalMoveLength - move1.state.totalMoveLength
+	if (move1.totalMoveLength !== move2.totalMoveLength) {
+		move2.state.totalMoveLength - move1.state.totalMoveLength;
+	}
+	return move2.freeCounters - move1.freeCounters;
 }
 
 
@@ -475,6 +480,9 @@ function declareWinner(winner) {
 
 function moveClick(event) {
 	const movePanel = document.getElementById('btns-moves');
+	if (!movePanel.classList.contains('show')) {
+		return;
+	}
 	movePanel.classList.remove('show');
 	if (possibleMoves.length === 0) {
 		currentState = previousState;
@@ -535,7 +543,11 @@ document.getElementById('btn-layout').addEventListener('click', function (event)
 });
 
 document.getElementById('btn-roll').addEventListener('click', function (event) {
-	document.getElementById('btns-actions').classList.remove('show');
+	const classList = document.getElementById('btns-actions').classList;
+	if (!classList.contains('show')) {
+		return;
+	}
+	classList.remove('show');
 	if (useAI && currentState.turn === 1) {
 		computerTurn();
 	} else {
@@ -544,7 +556,10 @@ document.getElementById('btn-roll').addEventListener('click', function (event) {
 });
 
 document.getElementById('btn-stop').addEventListener('click', function (event) {
-	document.getElementById('btns-actions').classList.remove('show');
+	const classList = document.getElementById('btns-actions').classList;
+	if (!classList.contains('show')) {
+		return;
+	}
 	currentState.endTurn();
 	previousState = new BoardState(currentState);
 	currentState.draw(context, previousState, boardClarity);
