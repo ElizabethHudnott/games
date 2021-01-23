@@ -265,7 +265,7 @@ class BoardState {
 		return sum / 1296;
 	}
 
-	draw(context, clearerBoard) {
+	draw(context, previousState, clearerBoard) {
 		const canvas = context.canvas;
 		const cellSize = Math.trunc(Math.min(canvas.width / 11, canvas.height / boardHeight) / 2) * 2;
 		const padding = Math.max(cellSize * cellPaddingFraction, minCellPaddingPx);
@@ -291,6 +291,7 @@ class BoardState {
 			} else if (this.playerStates[1][i - 2] === boardHeight) {
 				columnColor = playerColors[1];
 			}
+			const isCurrentColumn = this.currentColumns.has(i);
 			for (let j = columnHeight; j > 0; j--) {
 				let y;
 				if (clearerBoard) {
@@ -311,15 +312,19 @@ class BoardState {
 				} else {
 
 					if (this.playerStates[1][i - 2] === j + offset) {
-						counters.push(this.turn === 1 && this.currentColumns.has(i) ? temporaryColor : playerColors[1]);
+						counters.push(isCurrentColumn && this.turn === 1 ? temporaryColor : playerColors[1]);
 					}
 					if (this.playerStates[0][i - 2] === j + offset) {
 						if (counters[0] === temporaryColor) {
 							counters.unshift(playerColors[0]);
 						} else {
-							counters.push(this.turn === 0 && this.currentColumns.has(i) ? temporaryColor : playerColors[0]);
+							counters.push(isCurrentColumn && this.turn === 0 ? temporaryColor : playerColors[0]);
 						}
 					}
+					if (isCurrentColumn && previousState.playerStates[this.turn][i - 2] === j + offset) {
+						counters.push(playerColors[this.turn]);
+					}
+
 				}
 
 				const emptySpace = counters.length === 0;
@@ -407,8 +412,8 @@ function showMoves(chosenOption) {
 function newGame() {
 	currentState = new BoardState();
 	previousState = new BoardState(currentState);
+	currentState.draw(context, previousState, boardClarity);
 	document.getElementById('winning-message').hidden = true;
-	currentState.draw(context, boardClarity);
 	nextTurn();
 }
 
@@ -456,7 +461,7 @@ function shouldGamble(bestOption) {
 
 function declareWinner(winner) {
 	currentState.endTurn();
-	currentState.draw(context, boardClarity);
+	currentState.draw(context, currentState, boardClarity);
 	const winnerElement = document.getElementById('winner');
 	winnerElement.innerHTML = colorNames[winner];
 	winnerElement.style.color = playerColors[winner];
@@ -470,12 +475,12 @@ function moveClick(event) {
 		currentState = previousState;
 		currentState.endTurn();
 		previousState = new BoardState(currentState);
-		currentState.draw(context, boardClarity);
+		currentState.draw(context, previousState, boardClarity);
 		nextTurn();
 	} else {
 		const index = Array.from(movePanel.children).indexOf(this);
 		currentState.executeMove(possibleMoves[index]);
-		currentState.draw(context, boardClarity);
+		currentState.draw(context, previousState, boardClarity);
 		if (useAI && currentState.turn === 1) {
 			document.getElementById('btn-roll').disabled = !computerRollAgain;
 			document.getElementById('btn-stop').disabled = computerRollAgain;
@@ -516,7 +521,7 @@ document.getElementById('btn-toggle-ai').addEventListener('click', function (eve
 
 document.getElementById('btn-layout').addEventListener('click', function (event) {
 	boardClarity = !boardClarity;
-	currentState.draw(context, boardClarity);
+	currentState.draw(context, previousState, boardClarity);
 	if (boardClarity) {
 		this.innerHTML = 'Standard Layout';
 	} else {
@@ -538,7 +543,7 @@ document.getElementById('btn-stop').addEventListener('click', function (event) {
 	console.log(currentState.expectedGain() - currentState.gain);
 	currentState.endTurn();
 	previousState = new BoardState(currentState);
-	currentState.draw(context, boardClarity);
+	currentState.draw(context, previousState, boardClarity);
 	const winner = currentState.getWinner();
 	if (winner === undefined) {
 		nextTurn();
