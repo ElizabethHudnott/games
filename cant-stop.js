@@ -465,8 +465,8 @@ function shouldGamble(bestOption) {
 		}
 	}
 	const furtherGain = bestState.expectedGain() - bestState.gain;
-	if (furtherGain > - 6) console.log(furtherGain);
-	return furtherGain > -6;
+	console.log(furtherGain);
+	return furtherGain > -2.5;
 }
 
 function declareWinner(winner) {
